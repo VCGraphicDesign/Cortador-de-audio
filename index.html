@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0, viewport-fit=cover" />
+    <title>Audio Cutter</title>
+    <meta name="description" content="Recorte de audio inteligente en el navegador" />
+    <meta name="theme-color" content="#000000" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- iOS / Apple Support -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="AudioCutter" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: '#f0f9ff',
+                100: '#e0f2fe',
+                400: '#38bdf8',
+                500: '#0ea5e9',
+                600: '#0284c7',
+                900: '#0c4a6e',
+              }
+            },
+            animation: {
+              'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            }
+          }
+        }
+      }
+    </script>
+    
+    <style>
+      body {
+        overscroll-behavior-y: contain;
+        background-color: #000000;
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+      /* Ocultar scrollbars pero permitir scroll si es necesario */
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+
+    <!-- LameJS (MP3 Encoder) -->
+    <script src="https://cdn.jsdelivr.net/npm/lamejs@1.2.1/lame.min.js"></script>
+    
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✂️</text></svg>">
+    
+    <script type="importmap">
+    {
+      "imports": {
+        "react-dom/": "https://esm.sh/react-dom@^19.2.1/",
+        "react/": "https://esm.sh/react@^19.2.1/",
+        "react": "https://esm.sh/react@^19.2.1",
+        "@google/genai": "https://esm.sh/@google/genai@^1.32.0"
+      }
+    }
+    </script>
+</head>
+  <body class="bg-black text-slate-100 antialiased overflow-hidden">
+    <div id="root" class="h-full w-full"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>

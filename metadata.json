@@ -1,0 +1,5 @@
+{
+  "name": "Cortador de audio",
+  "description": "A serverless, progressive web application for intelligent audio trimming directly in the browser. Features client-side processing and AI-powered highlight detection.",
+  "requestFramePermissions": []
+}
