@@ -78,7 +78,7 @@ const App: React.FC = () => {
       <header className="bg-slate-800 border-b border-slate-700 py-4 px-6 shadow-md sticky top-0 z-50">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src="/icon-192.png" alt="Audio Cutter" className="w-8 h-8" />
+            <img src="/icon-192.png" alt="Audio Cutter" className="w-12 h-12" />
             <div>
               <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brand-400 to-indigo-400">
                 Cortador de audio
@@ -108,7 +108,7 @@ const App: React.FC = () => {
             onDrop={handleDrop}
           >
             <div className="w-20 h-20 bg-slate-800 rounded-full flex items-center justify-center mb-6 shadow-lg">
-              <img src="/icon-192.png" alt="Audio Cutter" className="w-12 h-12" />
+              <img src="/icon-192.png" alt="Audio Cutter" className="w-16 h-16" />
             </div>
             
             <h2 className="text-2xl font-bold mb-2">Sube tu audio</h2>
