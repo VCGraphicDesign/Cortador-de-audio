@@ -1,11 +1,10 @@
 const CACHE_NAME = 'audio-cutter-v1';
 const ASSETS = [
-  './',
-  './index.html',
-  './index.tsx',
-  './manifest.json',
-  './icon-192.png',
-  './icon-512.png'
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/icon-192.png',
+  '/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
