@@ -3,6 +3,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Waveform from './Waveform';
 import { AudioFileState, TrimRegion } from '../types';
 import { formatTime, audioBufferToWav, audioBufferToMp3 } from '../utils/audioUtils';
+import { NativeAudio } from '@capacitor-community/native-audio';
+import { Capacitor } from '@capacitor/core';
 
 interface AudioTrimmerProps {
   audioState: AudioFileState;
@@ -23,6 +25,8 @@ const AudioTrimmer: React.FC<AudioTrimmerProps> = ({ audioState, onReset }) => {
   const startTimeRef = useRef<number>(0);
   const animationFrameRef = useRef<number>(0);
   const gainNodeRef = useRef<GainNode | null>(null);
+  const nativeAudioAssetId = useRef<string>('trimmed-audio');
+  const isNative = Capacitor.getPlatform() !== 'web';
 
   useEffect(() => {
     audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -31,7 +35,8 @@ const AudioTrimmer: React.FC<AudioTrimmerProps> = ({ audioState, onReset }) => {
     };
   }, []);
 
-  const stopPlayback = useCallback(() => {
+  const stopPlayback = useCallback(async () => {
+    // Detener Web Audio API
     if (sourceNodeRef.current) {
       try { sourceNodeRef.current.stop(); } catch (e) {}
       sourceNodeRef.current = null;
@@ -39,13 +44,89 @@ const AudioTrimmer: React.FC<AudioTrimmerProps> = ({ audioState, onReset }) => {
     if (gainNodeRef.current) {
       try { gainNodeRef.current.gain.cancelScheduledValues(0); } catch(e) {}
     }
+    
+    // Detener audio nativo en móvil
+    if (isNative) {
+      try {
+        await NativeAudio.stop({ assetId: nativeAudioAssetId.current });
+      } catch (e) {
+        console.log('Error stopping native audio:', e);
+      }
+    }
+    
     setIsPlaying(false);
     if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-  }, []);
+  }, [isNative]);
 
-  const startPlayback = useCallback(() => {
+  const prepareNativeAudio = useCallback(async () => {
+    if (!isNative) return;
+    
+    try {
+      // Crear blob del segmento de audio
+      const blob = audioBufferToMp3(audioState.buffer, region.start, region.end, fadeInDuration, fadeOutDuration);
+      
+      // Convertir a base64 para el plugin nativo
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          const base64data = result.split(',')[1];
+          resolve(base64data);
+        };
+        reader.readAsDataURL(blob);
+      });
+      
+      // Preparar audio nativo
+      await NativeAudio.unload({ assetId: nativeAudioAssetId.current });
+      await NativeAudio.preload({
+        assetId: nativeAudioAssetId.current,
+        assetPath: `data:audio/mp3;base64,${base64}`,
+        audioChannelNum: 1,
+        isUrl: true
+      });
+    } catch (error) {
+      console.error('Error preparing native audio:', error);
+    }
+  }, [isNative, audioState.buffer, region.start, region.end, fadeInDuration, fadeOutDuration]);
+
+  const startPlayback = useCallback(async () => {
+    if (isNative) {
+      // Usar audio nativo en móvil
+      await stopPlayback();
+      await prepareNativeAudio();
+      
+      try {
+        await NativeAudio.play({ 
+          assetId: nativeAudioAssetId.current,
+          time: currentTime - region.start 
+        });
+        setIsPlaying(true);
+        
+        // Simular progreso del tiempo
+        const duration = region.end - region.start;
+        const startTime = currentTime - region.start;
+        let elapsed = startTime;
+        
+        const updateProgress = () => {
+          elapsed += 0.1;
+          if (elapsed >= duration) {
+            setIsPlaying(false);
+            setCurrentTime(region.start);
+          } else {
+            setCurrentTime(region.start + elapsed);
+            setTimeout(updateProgress, 100);
+          }
+        };
+        setTimeout(updateProgress, 100);
+      } catch (error) {
+        console.error('Error playing native audio:', error);
+        // Fallback a Web Audio API
+      }
+    }
+    
+    // Web Audio API (fallback o uso en web)
     if (!audioContextRef.current) return;
-    stopPlayback();
+    await stopPlayback();
 
     const ctx = audioContextRef.current;
     const source = ctx.createBufferSource();
@@ -113,7 +194,7 @@ const AudioTrimmer: React.FC<AudioTrimmerProps> = ({ audioState, onReset }) => {
       }
     };
     animationFrameRef.current = requestAnimationFrame(updateLoop);
-  }, [audioState.buffer, currentTime, region, stopPlayback, fadeInDuration, fadeOutDuration]);
+  }, [audioState.buffer, currentTime, region, stopPlayback, fadeInDuration, fadeOutDuration, isNative, prepareNativeAudio]);
 
   const togglePlay = () => {
     if (isPlaying) stopPlayback();
@@ -125,7 +206,7 @@ const AudioTrimmer: React.FC<AudioTrimmerProps> = ({ audioState, onReset }) => {
     setCurrentTime(time);
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     try {
       let blob: Blob;
       const nameParts = audioState.fileName.split('.');
@@ -139,18 +220,42 @@ const AudioTrimmer: React.FC<AudioTrimmerProps> = ({ audioState, onReset }) => {
         blob = audioBufferToWav(audioState.buffer, region.start, region.end, fadeInDuration, fadeOutDuration);
       }
 
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = fileName; 
-      document.body.appendChild(a);
-      a.click();
-      
-      setTimeout(() => {
-        URL.revokeObjectURL(url);
+      if (isNative) {
+        // Guardar en dispositivo móvil
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
+        const base64Data = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const result = reader.result as string;
+            const base64 = result.split(',')[1];
+            resolve(base64);
+          };
+          reader.readAsDataURL(blob);
+        });
+
+        await Filesystem.writeFile({
+          path: fileName,
+          data: base64Data,
+          directory: Directory.Documents
+        });
+
+        alert(`Archivo guardado en Documentos: ${fileName}`);
         onReset();
-      }, 1500);
+      } else {
+        // Comportamiento web original
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = fileName; 
+        document.body.appendChild(a);
+        a.click();
+        
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+          onReset();
+        }, 1500);
+      }
     } catch (error) {
       console.error(error);
       alert("Error al exportar.");
