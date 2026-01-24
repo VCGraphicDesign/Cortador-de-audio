@@ -281,13 +281,21 @@ const AudioTrimmer: React.FC<AudioTrimmerProps> = ({ audioData, onReset }) => {
     }
     console.log('✅ Archivo fuente verificado:', fileInfo);
 
-    // 6. Copiar archivo (ESTE ES EL PASO CRÍTICO)
+    // 6. Copiar archivo con nuevo sistema (NO deprecated)
     Alert.alert("Procesando", "Preparando el archivo...");
     
-    await FileSystem.copyAsync({
-      from: audioData.uri,
-      to: downloadPath
-    });
+    try {
+      const fileContent = await FileSystem.readAsStringAsync(audioData.uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      
+      await FileSystem.writeAsStringAsync(downloadPath, fileContent, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+    } catch (copyError) {
+      console.error('❌ Error copiando archivo:', copyError);
+      throw new Error('No se pudo copiar el archivo: ' + copyError.message);
+    }
     
     console.log('✅ Archivo copiado exitosamente');
 
